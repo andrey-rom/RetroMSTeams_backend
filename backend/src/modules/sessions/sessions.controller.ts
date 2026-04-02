@@ -7,6 +7,7 @@ import {
 } from "./sessions.schema.js";
 import * as repo from "./sessions.repository.js";
 import * as service from "./sessions.service.js";
+import { getSessionSummary } from "./sessions.summary.js";
 
 export const sessionsRouter = Router();
 
@@ -41,6 +42,15 @@ sessionsRouter.get("/", async (req, res) => {
   const channelId = (req.query.channelId as string) || "dev-channel";
   const sessions = await repo.findByChannel(channelId);
   await res.json(sessions);
+});
+
+sessionsRouter.get("/:id/summary", async (req, res, next) => {
+  try {
+    const summary = await getSessionSummary(req.params.id);
+    await res.json(summary);
+  } catch (err) {
+    next(err);
+  }
 });
 
 sessionsRouter.put(
