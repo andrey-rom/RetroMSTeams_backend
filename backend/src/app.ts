@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config/env.js";
 import { devAuth } from "./shared/middleware/dev-auth.js";
+import { errorHandler } from "./shared/middleware/error-handler.js";
 import { createApiRouter } from "./routes.js";
 
 export function createApp(): express.Express {
@@ -21,6 +22,8 @@ export function createApp(): express.Express {
   });
 
   app.use("/api", devAuth, createApiRouter());
+
+  app.use(errorHandler);
 
   return app;
 }

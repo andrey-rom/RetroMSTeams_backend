@@ -63,6 +63,7 @@ model TemplateValue {
 model Session {
   id              String        @id @default(uuid())
   title           String        @db.VarChar(200)
+  creatorId       String        @map("creator_id")
   msTeamsId       String        @map("ms_teams_id")
   msChannelId     String        @map("ms_channel_id")
   templateTypeId  String        @map("template_type_id")

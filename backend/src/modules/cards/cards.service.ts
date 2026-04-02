@@ -1,5 +1,10 @@
 import { generateOwnerHash } from "../../shared/utils/hash.js";
 import {
+  NotFoundError,
+  AppError,
+  ForbiddenError,
+} from "../../shared/errors/app-error.js";
+import {
   emitCardCreated,
   emitCardUpdated,
   emitCardDeleted,
@@ -14,12 +19,9 @@ export async function createCard(
   userId: string,
 ) {
   const session = await sessionsRepo.findById(sessionId);
-  if (!session) throw new Error("Session not found");
+  if (!session) throw new NotFoundError("Session");
   if (session.currentPhase !== "collect") {
-    throw new Error("Cards can only be added during the collect phase");
-  }
-  if (content.length > 500) {
-    throw new Error("Card content must be 500 characters or fewer");
+    throw new AppError("Cards can only be added during the collect phase");
   }
 
   const ownerHash = generateOwnerHash(userId, sessionId);
@@ -41,16 +43,16 @@ export async function updateCard(
   userId: string,
 ) {
   const card = await cardsRepo.findById(cardId);
-  if (!card) throw new Error("Card not found");
+  if (!card) throw new NotFoundError("Card");
 
   const session = await sessionsRepo.findById(card.sessionId);
   if (session?.currentPhase !== "collect") {
-    throw new Error("Cards can only be edited during the collect phase");
+    throw new AppError("Cards can only be edited during the collect phase");
   }
 
   const ownerHash = generateOwnerHash(userId, card.sessionId);
   if (card.ownerHash !== ownerHash) {
-    throw new Error("You can only edit your own cards");
+    throw new ForbiddenError("You can only edit your own cards");
   }
 
   const updated = await cardsRepo.update(cardId, content);
@@ -60,16 +62,16 @@ export async function updateCard(
 
 export async function deleteCard(cardId: string, userId: string) {
   const card = await cardsRepo.findById(cardId);
-  if (!card) throw new Error("Card not found");
+  if (!card) throw new NotFoundError("Card");
 
   const session = await sessionsRepo.findById(card.sessionId);
   if (session?.currentPhase !== "collect") {
-    throw new Error("Cards can only be deleted during the collect phase");
+    throw new AppError("Cards can only be deleted during the collect phase");
   }
 
   const ownerHash = generateOwnerHash(userId, card.sessionId);
   if (card.ownerHash !== ownerHash) {
-    throw new Error("You can only delete your own cards");
+    throw new ForbiddenError("You can only delete your own cards");
   }
 
   await cardsRepo.remove(cardId);

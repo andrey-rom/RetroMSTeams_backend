@@ -3,6 +3,7 @@ import type { SessionPhase, SessionStatus } from "../../generated/prisma/client.
 
 interface CreateSessionInput {
   title: string;
+  creatorId: string;
   msTeamsId: string;
   msChannelId: string;
   templateTypeId: string;
@@ -13,6 +14,7 @@ export async function create(data: CreateSessionInput) {
   return prisma.session.create({
     data: {
       title: data.title,
+      creatorId: data.creatorId,
       msTeamsId: data.msTeamsId,
       msChannelId: data.msChannelId,
       templateTypeId: data.templateTypeId,
@@ -50,6 +52,11 @@ export async function updatePhase(id: string, phase: SessionPhase) {
   return prisma.session.update({
     where: { id },
     data: { currentPhase: phase },
+    include: {
+      templateType: {
+        include: { values: { orderBy: { sortOrder: "asc" } } },
+      },
+    },
   });
 }
 

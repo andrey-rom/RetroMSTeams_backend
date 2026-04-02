@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { validate } from "../../shared/middleware/validate.js";
+import { createCardSchema, updateCardSchema } from "./cards.schema.js";
 import * as cardsRepo from "./cards.repository.js";
 import * as cardsService from "./cards.service.js";
 
@@ -9,61 +11,47 @@ cardsRouter.get("/:sessionId/cards", async (req, res) => {
   await res.json(cards);
 });
 
-cardsRouter.post("/:sessionId/cards", async (req, res) => {
-  const { columnKey, content } = req.body;
+cardsRouter.post(
+  "/:sessionId/cards",
+  validate(createCardSchema),
+  async (req, res, next) => {
+    try {
+      const card = await cardsService.createCard(
+        req.params.sessionId,
+        req.body.columnKey,
+        req.body.content,
+        req.userId,
+      );
+      res.status(201);
+      await res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
-  if (!columnKey || !content) {
-    res.status(400);
-    await res.json({ error: "columnKey and content are required" });
-    return;
-  }
+cardsRouter.put(
+  "/cards/:id",
+  validate(updateCardSchema),
+  async (req, res, next) => {
+    try {
+      const card = await cardsService.updateCard(
+        req.params.id,
+        req.body.content,
+        req.userId,
+      );
+      await res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
-  try {
-    const card = await cardsService.createCard(
-      req.params.sessionId,
-      columnKey,
-      content,
-      req.userId,
-    );
-    res.status(201);
-    await res.json(card);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    res.status(400);
-    await res.json({ error: message });
-  }
-});
-
-cardsRouter.put("/cards/:id", async (req, res) => {
-  const { content } = req.body;
-
-  if (!content) {
-    res.status(400);
-    await res.json({ error: "content is required" });
-    return;
-  }
-
-  try {
-    const card = await cardsService.updateCard(
-      req.params.id,
-      content,
-      req.userId,
-    );
-    await res.json(card);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    res.status(400);
-    await res.json({ error: message });
-  }
-});
-
-cardsRouter.delete("/cards/:id", async (req, res) => {
+cardsRouter.delete("/cards/:id", async (req, res, next) => {
   try {
     await cardsService.deleteCard(req.params.id, req.userId);
     await res.json({ success: true });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    res.status(400);
-    await res.json({ error: message });
+  } catch (err) {
+    next(err);
   }
 });

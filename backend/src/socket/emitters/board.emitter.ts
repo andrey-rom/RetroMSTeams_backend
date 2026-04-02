@@ -23,6 +23,16 @@ export function emitCardDeleted(sessionId: string, cardId: string): void {
   getIO().to(`session:${sessionId}`).emit("card:deleted", { cardId });
 }
 
+export function emitVoteUpdated(
+  sessionId: string,
+  cardId: string,
+  votesCount: number,
+): void {
+  getIO()
+    .to(`session:${sessionId}`)
+    .emit("vote:updated", { cardId, votesCount });
+}
+
 export function emitPhaseChanged(
   sessionId: string,
   phase: SessionPhase,
