@@ -8,6 +8,7 @@ import {
 import * as repo from "./sessions.repository.js";
 import * as service from "./sessions.service.js";
 import { getSessionSummary } from "./sessions.summary.js";
+import { publishSummary } from "../teams/teams.service.js";
 
 export const sessionsRouter = Router();
 
@@ -48,6 +49,15 @@ sessionsRouter.get("/:id/summary", async (req, res, next) => {
   try {
     const summary = await getSessionSummary(req.params.id);
     await res.json(summary);
+  } catch (err) {
+    next(err);
+  }
+});
+
+sessionsRouter.post("/:id/publish", async (req, res, next) => {
+  try {
+    const result = await publishSummary(req.params.id, req.userId);
+    await res.json(result);
   } catch (err) {
     next(err);
   }
