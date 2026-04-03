@@ -1,5 +1,6 @@
 import http from "http";
 import { env, validateEnv } from "./config/env.js";
+import { logger } from "./config/logger.js";
 import { createApp } from "./app.js";
 import { initSocketServer } from "./socket/socket.js";
 
@@ -11,8 +12,7 @@ const server = http.createServer(app);
 initSocketServer(server);
 
 server.listen(env.port, () => {
-  console.log(`[retro-bot] Backend running on http://localhost:${env.port}`);
-  console.log(`[retro-bot] Health check: http://localhost:${env.port}/api/health`);
-  console.log(`[retro-bot] WebSocket: ws://localhost:${env.port}`);
-  console.log(`[retro-bot] Environment: ${env.nodeEnv}`);
+  logger.info({ port: env.port, env: env.nodeEnv }, "Backend running");
+  logger.info({ url: `http://localhost:${env.port}/api/health` }, "Health check");
+  logger.info({ url: `ws://localhost:${env.port}` }, "WebSocket");
 });

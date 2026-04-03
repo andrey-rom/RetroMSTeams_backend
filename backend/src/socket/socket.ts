@@ -1,6 +1,7 @@
 import { Server as HttpServer } from "http";
 import { Server, type Socket } from "socket.io";
 import { env } from "../config/env.js";
+import { logger } from "../config/logger.js";
 import { registerSessionHandlers } from "./handlers/session.handler.js";
 
 let io: Server;
@@ -25,12 +26,12 @@ export function initSocketServer(httpServer: HttpServer): Server {
       return;
     }
 
-    console.log(`[socket] connected: ${socket.id} (user: ${userId})`);
+    logger.debug({ socketId: socket.id, userId }, "Socket connected");
 
     registerSessionHandlers(socket);
 
     socket.on("disconnect", () => {
-      console.log(`[socket] disconnected: ${socket.id}`);
+      logger.debug({ socketId: socket.id }, "Socket disconnected");
     });
   });
 

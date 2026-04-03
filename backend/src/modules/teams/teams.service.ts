@@ -1,4 +1,5 @@
 import { env } from "../../config/env.js";
+import { logger } from "../../config/logger.js";
 import { getSessionSummary } from "../sessions/sessions.summary.js";
 import { buildSummaryCard } from "./adaptive-cards/summary.card.js";
 import { prisma } from "../../config/db.js";
@@ -51,12 +52,11 @@ export async function publishSummary(
 
   if (env.isDev) {
     messageId = `dev-msg-${Date.now()}`;
-    console.log(
-      `[teams] DEV MODE — would publish to channel ${session.msChannelId}`,
+    logger.info(
+      { channelId: session.msChannelId, sessionId },
+      "DEV MODE — would publish to channel",
     );
-    console.log(
-      `[teams] Adaptive Card preview:\n${JSON.stringify(adaptiveCard, null, 2).slice(0, 500)}...`,
-    );
+    logger.debug({ adaptiveCard }, "Adaptive Card preview");
   } else {
     // TODO: real MS Graph call
     // const graphClient = getGraphClient();
