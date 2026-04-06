@@ -9,6 +9,8 @@ export const createSessionSchema = z.object({
   msTeamsId: z.string().optional(),
   msChannelId: z.string().optional(),
   maxVotesPerUser: z.number().int().min(1).max(99).optional(),
+  collectTimerSeconds: z.number().int().min(30).max(3600).optional(),
+  voteTimerSeconds: z.number().int().min(30).max(3600).optional(),
 });
 
 export const advancePhaseSchema = z.object({

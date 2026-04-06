@@ -17,6 +17,7 @@ export const openApiDocument = {
     { name: "Sessions", description: "Retrospective sessions" },
     { name: "Cards", description: "Anonymous cards" },
     { name: "Votes", description: "Voting" },
+    { name: "WebSocket Events", description: "Real-time events emitted via Socket.IO. Connect to the server root and join a session room by emitting `join` with { sessionId }." },
   ],
   components: {
     securitySchemes: {
@@ -45,6 +46,12 @@ export const openApiDocument = {
           currentPhase: { type: "string", enum: ["collect", "vote", "summary"] },
           currentStatus: { type: "string", enum: ["active", "completed", "archived"] },
           maxVotesPerUser: { type: "integer" },
+          collectTimerSeconds: { type: "integer", nullable: true, description: "Collect phase timer duration set at creation (null if none)" },
+          voteTimerSeconds: { type: "integer", nullable: true, description: "Vote phase timer duration set at creation (null if none)" },
+          timerExpiresAt: { type: "string", format: "date-time", nullable: true, description: "ISO timestamp when the current phase timer expires (null if no timer)" },
+          collectGraceAt: { type: "string", format: "date-time", nullable: true, description: "Set when collect timer expires — grace period active (one last card per column)" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
           reportMessageId: { type: "string", nullable: true },
         },
       },
@@ -139,6 +146,8 @@ export const openApiDocument = {
                   msTeamsId: { type: "string" },
                   msChannelId: { type: "string" },
                   maxVotesPerUser: { type: "integer", minimum: 1, maximum: 99 },
+                  collectTimerSeconds: { type: "integer", minimum: 30, maximum: 3600, description: "Optional collect phase countdown (seconds)" },
+                  voteTimerSeconds: { type: "integer", minimum: 30, maximum: 3600, description: "Optional vote phase countdown (seconds)" },
                 },
               },
             },
@@ -147,6 +156,7 @@ export const openApiDocument = {
         responses: {
           "201": { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/Session" } } } },
           "400": { description: "Validation error" },
+          "429": { description: "Rate limit exceeded" },
         },
       },
     },
@@ -182,6 +192,48 @@ export const openApiDocument = {
           "400": { description: "Wrong phase" },
           "403": { description: "Not moderator" },
           "409": { description: "Already published" },
+        },
+      },
+    },
+    "/sessions/{id}/grace-status": {
+      get: {
+        tags: ["Sessions"],
+        summary: "Check which columns the current user has already used their grace card in",
+        description: "Returns graceActive: true only when the session is still in the collect phase and the grace period has started. After the phase advances, returns graceActive: false.",
+        security: [{ UserIdHeader: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": {
+            description: "Grace period status",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    graceActive: { type: "boolean", description: "Whether the collect grace period is active (only true during collect phase)" },
+                    usedColumns: { type: "array", items: { type: "string" }, description: "Column keys where the user already added a grace card" },
+                  },
+                },
+              },
+            },
+          },
+          "404": { description: "Session not found" },
+          "429": { description: "Rate limit exceeded" },
+        },
+      },
+    },
+    "/sessions/{id}/start": {
+      post: {
+        tags: ["Sessions"],
+        summary: "Start the retrospective — begins the collect timer (moderator only)",
+        description: "Requires a collect timer to be configured at session creation. Fails with 400 if no timer is configured, or if the timer is already running / has already expired into the grace period. Uses an atomic claim to prevent duplicate starts.",
+        security: [{ UserIdHeader: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          "200": { description: "{ started: true }" },
+          "400": { description: "Not in collect phase, no timer configured, or timer already running" },
+          "403": { description: "Not moderator" },
+          "429": { description: "Rate limit exceeded" },
         },
       },
     },
@@ -300,6 +352,31 @@ export const openApiDocument = {
         security: [{ UserIdHeader: [] }],
         parameters: [{ name: "cardId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: { "200": { description: "{ cardId, votesCount }" } },
+      },
+    },
+    "/websocket-events": {
+      get: {
+        tags: ["WebSocket Events"],
+        summary: "Socket.IO events reference (not a real HTTP endpoint)",
+        description: [
+          "Connect via Socket.IO to the server root (`ws://localhost:3000`). Join a session room by emitting `join` with `{ sessionId }`.",
+          "",
+          "**Server-to-client events:**",
+          "",
+          "| Event | Payload | Description |",
+          "|---|---|---|",
+          "| `card:created` | `{ id, sessionId, columnKey, content, ownerHash, votesCount, createdAt }` | A new card was added |",
+          "| `card:updated` | Same as card:created | A card's content was edited |",
+          "| `card:deleted` | `{ cardId }` | A card was removed |",
+          "| `vote:updated` | `{ cardId, votesCount }` | A card's vote count changed |",
+          "| `phase:changed` | `{ phase, timerExpiresAt }` | Session phase advanced (timerExpiresAt is null or ISO string) |",
+          "| `timer:started` | `{ timerExpiresAt }` | A phase timer was started (ISO timestamp) |",
+          "| `timer:expired` | `{}` | The vote phase timer expired — moderator should advance |",
+          "| `collect:grace` | `{ collectGraceAt }` | Collect timer expired — grace period started (ISO timestamp, one last card per column) |",
+        ].join("\n"),
+        responses: {
+          "200": { description: "N/A — this is a documentation-only entry for Socket.IO events" },
+        },
       },
     },
   },

@@ -40,6 +40,25 @@ export function emitPhaseChanged(
 ): void {
   getIO().to(`session:${sessionId}`).emit("phase:changed", {
     phase,
-    timerExpiresAt: timerExpiresAt?.toISOString(),
+    timerExpiresAt: timerExpiresAt?.toISOString() ?? null,
+  });
+}
+
+export function emitTimerStarted(
+  sessionId: string,
+  timerExpiresAt: Date,
+): void {
+  getIO().to(`session:${sessionId}`).emit("timer:started", {
+    timerExpiresAt: timerExpiresAt.toISOString(),
+  });
+}
+
+export function emitTimerExpired(sessionId: string): void {
+  getIO().to(`session:${sessionId}`).emit("timer:expired", {});
+}
+
+export function emitCollectGrace(sessionId: string, graceAt?: Date): void {
+  getIO().to(`session:${sessionId}`).emit("collect:grace", {
+    collectGraceAt: (graceAt ?? new Date()).toISOString(),
   });
 }

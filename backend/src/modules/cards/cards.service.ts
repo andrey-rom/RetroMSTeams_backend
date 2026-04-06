@@ -26,6 +26,22 @@ export async function createCard(
 
   const ownerHash = generateOwnerHash(userId, sessionId);
 
+  if (session.collectGraceAt) {
+    const graceCards = await cardsRepo.countByOwnerInColumnSince(
+      sessionId,
+      columnKey,
+      ownerHash,
+      session.collectGraceAt,
+    );
+    if (graceCards >= 1) {
+      throw new AppError(
+        "Time is up — you've already added your last card to this column",
+        403,
+        "GRACE_LIMIT",
+      );
+    }
+  }
+
   const card = await cardsRepo.create({
     sessionId,
     columnKey,

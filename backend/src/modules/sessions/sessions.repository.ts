@@ -8,6 +8,8 @@ interface CreateSessionInput {
   msChannelId: string;
   templateTypeId: string;
   maxVotesPerUser?: number;
+  collectTimerSeconds?: number;
+  voteTimerSeconds?: number;
 }
 
 export async function create(data: CreateSessionInput) {
@@ -19,6 +21,8 @@ export async function create(data: CreateSessionInput) {
       msChannelId: data.msChannelId,
       templateTypeId: data.templateTypeId,
       maxVotesPerUser: data.maxVotesPerUser ?? 5,
+      collectTimerSeconds: data.collectTimerSeconds ?? null,
+      voteTimerSeconds: data.voteTimerSeconds ?? null,
       currentStatus: "active",
     },
     include: {
@@ -48,16 +52,46 @@ export async function findByChannel(channelId: string) {
   });
 }
 
-export async function updatePhase(id: string, phase: SessionPhase) {
+export async function updatePhase(
+  id: string,
+  phase: SessionPhase,
+) {
   return prisma.session.update({
     where: { id },
-    data: { currentPhase: phase },
+    data: { currentPhase: phase, timerExpiresAt: null, collectGraceAt: null },
     include: {
       templateType: {
         include: { values: { orderBy: { sortOrder: "asc" } } },
       },
     },
   });
+}
+
+export async function setTimerExpiresAt(id: string, timerExpiresAt: Date | null) {
+  return prisma.session.update({
+    where: { id },
+    data: { timerExpiresAt },
+    include: {
+      templateType: {
+        include: { values: { orderBy: { sortOrder: "asc" } } },
+      },
+    },
+  });
+}
+
+export async function setCollectGraceAt(id: string, collectGraceAt: Date) {
+  return prisma.session.update({
+    where: { id },
+    data: { collectGraceAt, timerExpiresAt: null },
+  });
+}
+
+export async function claimTimerStart(id: string): Promise<boolean> {
+  const result = await prisma.session.updateMany({
+    where: { id, timerExpiresAt: null, collectGraceAt: null },
+    data: { timerExpiresAt: new Date(0) },
+  });
+  return result.count > 0;
 }
 
 export async function updateStatus(id: string, status: SessionStatus) {

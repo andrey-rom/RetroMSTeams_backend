@@ -70,10 +70,13 @@ model Session {
   currentStatus   SessionStatus @default(draft) @map("current_status")
   currentPhase    SessionPhase  @default(collect) @map("current_phase")
   maxVotesPerUser Int           @default(5) @map("max_votes_per_user")
-  timerExpiresAt  DateTime?     @map("timer_expires_at")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  reportMessageId String?       @map("report_message_id")
+  collectTimerSeconds Int?      @map("collect_timer_seconds")
+  voteTimerSeconds    Int?      @map("vote_timer_seconds")
+  timerExpiresAt      DateTime? @map("timer_expires_at")
+  collectGraceAt      DateTime? @map("collect_grace_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  reportMessageId     String?   @map("report_message_id")
 
   templateType TemplateType @relation(fields: [templateTypeId], references: [id])
   cards        Card[]
