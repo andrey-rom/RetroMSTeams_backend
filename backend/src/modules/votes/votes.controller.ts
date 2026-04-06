@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { generateOwnerHash } from "../../shared/utils/hash.js";
+import { voteLimiter } from "../../shared/middleware/rate-limit.js";
 import * as votesRepo from "./votes.repository.js";
 import * as votesService from "./votes.service.js";
 
@@ -14,7 +15,7 @@ votesRouter.get("/sessions/:sessionId/my-votes", async (req, res) => {
   await res.json({ cardIds });
 });
 
-votesRouter.post("/cards/:cardId/vote", async (req, res, next) => {
+votesRouter.post("/cards/:cardId/vote", voteLimiter, async (req, res, next) => {
   try {
     const card = await votesService.castVote(req.params.cardId, req.userId);
     await res.json({ cardId: card.id, votesCount: card.votesCount });
@@ -23,7 +24,7 @@ votesRouter.post("/cards/:cardId/vote", async (req, res, next) => {
   }
 });
 
-votesRouter.delete("/cards/:cardId/vote", async (req, res, next) => {
+votesRouter.delete("/cards/:cardId/vote", voteLimiter, async (req, res, next) => {
   try {
     const card = await votesService.removeVote(req.params.cardId, req.userId);
     await res.json({ cardId: card.id, votesCount: card.votesCount });

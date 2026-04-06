@@ -14,5 +14,6 @@ initSocketServer(server);
 server.listen(env.port, () => {
   logger.info({ port: env.port, env: env.nodeEnv }, "Backend running");
   logger.info({ url: `http://localhost:${env.port}/api/health` }, "Health check");
+  logger.info({ url: `http://localhost:${env.port}/api/docs` }, "API docs (Swagger UI)");
   logger.info({ url: `ws://localhost:${env.port}` }, "WebSocket");
 });

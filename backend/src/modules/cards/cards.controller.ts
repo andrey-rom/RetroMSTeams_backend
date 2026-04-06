@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { validate } from "../../shared/middleware/validate.js";
+import { createLimiter } from "../../shared/middleware/rate-limit.js";
 import { createCardSchema, updateCardSchema } from "./cards.schema.js";
 import * as cardsRepo from "./cards.repository.js";
 import * as cardsService from "./cards.service.js";
@@ -13,6 +14,7 @@ cardsRouter.get("/:sessionId/cards", async (req, res) => {
 
 cardsRouter.post(
   "/:sessionId/cards",
+  createLimiter,
   validate(createCardSchema),
   async (req, res, next) => {
     try {

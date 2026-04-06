@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { validate } from "../../shared/middleware/validate.js";
 import { NotFoundError } from "../../shared/errors/app-error.js";
+import { createLimiter } from "../../shared/middleware/rate-limit.js";
 import {
   createSessionSchema,
   advancePhaseSchema,
@@ -12,7 +13,7 @@ import { publishSummary } from "../teams/teams.service.js";
 
 export const sessionsRouter = Router();
 
-sessionsRouter.post("/", validate(createSessionSchema), async (req, res) => {
+sessionsRouter.post("/", createLimiter, validate(createSessionSchema), async (req, res) => {
   const { title, templateTypeId, msTeamsId, msChannelId, maxVotesPerUser } =
     req.body;
 

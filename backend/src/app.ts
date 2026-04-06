@@ -5,6 +5,8 @@ import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { devAuth } from "./shared/middleware/dev-auth.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
+import { apiLimiter } from "./shared/middleware/rate-limit.js";
+import { setupSwaggerUi } from "./docs/swagger.js";
 import { createApiRouter } from "./routes.js";
 
 export function createApp(): express.Express {
@@ -14,7 +16,10 @@ export function createApp(): express.Express {
     pinoHttp({
       logger,
       autoLogging: {
-        ignore: (req) => req.url === "/api/health" || req.method === "OPTIONS",
+        ignore: (req) =>
+          req.url === "/api/health" ||
+          req.method === "OPTIONS" ||
+          (req.url?.startsWith("/api/docs") ?? false),
       },
       serializers: {
         req: (req) => ({
@@ -37,11 +42,13 @@ export function createApp(): express.Express {
   );
   app.use(express.json());
 
-  app.use("/api/health", (_req, res) => {
+  setupSwaggerUi(app);
+
+  app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  app.use("/api", devAuth, createApiRouter());
+  app.use("/api", apiLimiter, devAuth, createApiRouter());
 
   app.use(errorHandler);
 
