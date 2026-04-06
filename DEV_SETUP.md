@@ -100,6 +100,12 @@ Open the same URL in a second browser or incognito window. Each browser gets a u
 
 ## Troubleshooting
 
+**Tab in Teams shows `ERR_SSL_PROTOCOL_ERROR` / “localhost sent an invalid response”**
+
+The packaged app’s tab URL must match how the tab server runs. Plain `npm run dev` serves **HTTP** on port 3978. If the Teams manifest still has **`https://localhost:3978`**, the client will try HTTPS and you get this SSL error.
+
+**Fix:** Re-provision the app so `TAB_ENDPOINT` is `http://localhost:3978` (see `RetroMSTeams_frontend/m365agents.local.yml`), rebuild the app package, and update the app in Teams. Or run **HTTPS** locally: use Teams Toolkit **Deploy** (installs a dev cert and writes `.localConfigs`), then `npm run dev:teamsfx` in the frontend folder, and keep **`https://localhost:3978`** in the manifest.
+
 **Port already in use (3978/3979)**
 ```bash
 lsof -ti:3978 -ti:3979 | xargs kill -9

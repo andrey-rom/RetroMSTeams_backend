@@ -64,6 +64,7 @@ backend/src/generated/prisma/query_engine-windows.dll.node
 backend/src/generated/prisma/query_engine-windows.dll.node.tmp1128
 backend/src/generated/prisma/query_engine-windows.dll.node.tmp16036
 backend/src/generated/prisma/query_engine-windows.dll.node.tmp18964
+backend/src/generated/prisma/libquery_engine-darwin-arm64.dylib.node
 backend/src/generated/prisma/internal/class.ts
 backend/src/generated/prisma/internal/prismaNamespace.ts
 backend/src/generated/prisma/internal/prismaNamespaceBrowser.ts

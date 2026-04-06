@@ -16,7 +16,7 @@ export const env = {
     expiresIn: process.env.JWT_EXPIRES_IN || "24h",
   },
 
-  frontendUrl: process.env.FRONTEND_URL || "https://localhost:3978",
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3978",
 } as const;
 
 export function validateEnv(): void {
