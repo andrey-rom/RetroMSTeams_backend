@@ -14,6 +14,7 @@ export const env = {
   jwt: {
     secret: process.env.JWT_SECRET || "dev-secret-change-in-production",
     expiresIn: process.env.JWT_EXPIRES_IN || "24h",
+    audience: process.env.JWT_AUDIENCE || "retrobot-clients",
   },
 
   frontendUrl: process.env.FRONTEND_URL || "https://localhost:3978",
@@ -28,6 +29,7 @@ export function validateEnv(): void {
       ["AZURE_CLIENT_ID", env.azure.clientId],
       ["AZURE_CLIENT_SECRET", env.azure.clientSecret],
       ["JWT_SECRET", env.jwt.secret],
+      ["JWT_AUDIENCE", env.jwt.audience],
     );
   }
 

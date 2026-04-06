@@ -15,8 +15,8 @@ interface SummaryCardInput {
 }
 
 export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown> {
-  const columnBlocks = data.columns.flatMap((col) => {
-    const header = {
+  const columnBlocks: Record<string, unknown>[] = data.columns.flatMap((col) => {
+    const header: Record<string, unknown> = {
       type: "TextBlock",
       text: `${col.label}  (${col.totalCards} cards · ${col.totalVotes} votes)`,
       weight: "Bolder",
@@ -28,14 +28,17 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
     if (col.cards.length === 0) {
       return [
         header,
-        { type: "TextBlock", text: "_No cards_", isSubtle: true, spacing: "Small" },
+        {
+          type: "TextBlock",
+          text: "_No cards_",
+          isSubtle: true,
+          spacing: "Small",
+        },
       ];
     }
 
-    const cardItems = col.cards.map((card) => ({
-      type: "ColumnSet",
-      spacing: "Small",
-      columns: [
+    const cardItems: Record<string, unknown>[] = col.cards.map((card) => {
+      const columns: Record<string, unknown>[] = [
         {
           type: "Column",
           width: "stretch",
@@ -48,26 +51,31 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
             },
           ],
         },
-        ...(card.votesCount > 0
-          ? [
-              {
-                type: "Column",
-                width: "auto",
-                verticalContentAlignment: "Center",
-                items: [
-                  {
-                    type: "TextBlock",
-                    text: `+${card.votesCount}`,
-                    weight: "Bolder",
-                    size: "Small",
-                    color: "Accent",
-                  },
-                ],
-              },
-            ]
-          : []),
-      ],
-    }));
+      ];
+
+      if (card.votesCount > 0) {
+        columns.push({
+          type: "Column",
+          width: "auto",
+          verticalContentAlignment: "Center",
+          items: [
+            {
+              type: "TextBlock",
+              text: `+${card.votesCount}`,
+              weight: "Bolder",
+              size: "Small",
+              color: "Accent",
+            },
+          ],
+        });
+      }
+
+      return {
+        type: "ColumnSet",
+        spacing: "Small",
+        columns,
+      };
+    });
 
     return [header, ...cardItems];
   });

@@ -6,8 +6,12 @@ import * as cardsService from "./cards.service.js";
 
 export const cardsRouter = Router({ mergeParams: true });
 
+function getParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] : (value ?? "");
+}
+
 cardsRouter.get("/:sessionId/cards", async (req, res) => {
-  const cards = await cardsRepo.findBySession(req.params.sessionId);
+  const cards = await cardsRepo.findBySession(getParam(req.params.sessionId));
   await res.json(cards);
 });
 
@@ -17,7 +21,7 @@ cardsRouter.post(
   async (req, res, next) => {
     try {
       const card = await cardsService.createCard(
-        req.params.sessionId,
+        getParam(req.params.sessionId),
         req.body.columnKey,
         req.body.content,
         req.userId,
@@ -36,7 +40,7 @@ cardsRouter.put(
   async (req, res, next) => {
     try {
       const card = await cardsService.updateCard(
-        req.params.id,
+        getParam(req.params.id),
         req.body.content,
         req.userId,
       );
@@ -49,7 +53,7 @@ cardsRouter.put(
 
 cardsRouter.delete("/cards/:id", async (req, res, next) => {
   try {
-    await cardsService.deleteCard(req.params.id, req.userId);
+    await cardsService.deleteCard(getParam(req.params.id), req.userId);
     await res.json({ success: true });
   } catch (err) {
     next(err);

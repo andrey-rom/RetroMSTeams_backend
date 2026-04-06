@@ -4,6 +4,7 @@ import {
   type AuthenticationResult,
 } from "@azure/msal-node";
 import { env } from "./env.js";
+import { logger } from "./logger.js";
 
 const msalConfig: Configuration = {
   auth: {
@@ -32,8 +33,13 @@ export async function exchangeTeamsSsoToken(
   scopes: string[] = ["User.Read"],
 ): Promise<AuthenticationResult | null> {
   const client = getMsalInstance();
-  return client.acquireTokenOnBehalfOf({
-    oboAssertion: ssoToken,
-    scopes,
-  });
+  try {
+    return await client.acquireTokenOnBehalfOf({
+      oboAssertion: ssoToken,
+      scopes,
+    });
+  } catch (error) {
+    logger.warn({ err: error }, "Teams SSO token exchange failed");
+    return null;
+  }
 }

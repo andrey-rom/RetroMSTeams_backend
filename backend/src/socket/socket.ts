@@ -2,6 +2,8 @@ import { Server as HttpServer } from "http";
 import { Server, type Socket } from "socket.io";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
+import { AppError } from "../shared/errors/app-error.js";
+import { getSocketUserId } from "../shared/middleware/auth.js";
 import { registerSessionHandlers } from "./handlers/session.handler.js";
 
 let io: Server;
@@ -20,8 +22,15 @@ export function initSocketServer(httpServer: HttpServer): Server {
   });
 
   io.on("connection", (socket: Socket) => {
-    const userId = socket.handshake.auth.userId as string | undefined;
-    if (!userId) {
+    const authToken = socket.handshake.auth.token as string | undefined;
+
+    let userId: string;
+    try {
+      userId = getSocketUserId(authToken);
+    } catch (error) {
+      const code =
+        error instanceof AppError ? error.code : "UNAUTHORIZED";
+      logger.warn({ socketId: socket.id, code }, "Socket rejected");
       socket.disconnect(true);
       return;
     }

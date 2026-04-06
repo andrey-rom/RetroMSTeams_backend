@@ -12,6 +12,10 @@ import { publishSummary } from "../teams/teams.service.js";
 
 export const sessionsRouter = Router();
 
+function getParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] : (value ?? "");
+}
+
 sessionsRouter.post("/", validate(createSessionSchema), async (req, res) => {
   const { title, templateTypeId, msTeamsId, msChannelId, maxVotesPerUser } =
     req.body;
@@ -68,7 +72,11 @@ sessionsRouter.put(
   validate(advancePhaseSchema),
   async (req, res, next) => {
     try {
-      const updated = await service.advancePhase(req.params.id, req.body.phase, req.userId);
+      const updated = await service.advancePhase(
+        getParam(req.params.id),
+        req.body.phase,
+        req.userId,
+      );
       await res.json(updated);
     } catch (err) {
       next(err);

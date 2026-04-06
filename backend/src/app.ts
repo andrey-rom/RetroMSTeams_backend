@@ -3,9 +3,9 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
-import { devAuth } from "./shared/middleware/dev-auth.js";
+import { requireAuth } from "./shared/middleware/auth.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
-import { createApiRouter } from "./routes.js";
+import { createProtectedApiRouter, createPublicApiRouter } from "./routes.js";
 
 export function createApp(): express.Express {
   const app = express();
@@ -41,7 +41,8 @@ export function createApp(): express.Express {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
-  app.use("/api", devAuth, createApiRouter());
+  app.use("/api", createPublicApiRouter());
+  app.use("/api", requireAuth, createProtectedApiRouter());
 
   app.use(errorHandler);
 
