@@ -81,6 +81,7 @@ model Session {
   templateType TemplateType @relation(fields: [templateTypeId], references: [id])
   cards        Card[]
 
+  @@index([creatorId]) // For querying sessions created by a user
   @@index([msChannelId])
   @@index([currentStatus])
   @@map("sessions")
@@ -112,13 +113,15 @@ model Card {
 // ─────────────────────────────────────────────────────────────
 
 model Vote {
-  id        String @id @default(uuid())
-  cardId    String @map("card_id")
-  voterHash String @map("voter_hash") // SHA256(userOid : sessionId)
+  id        String   @id @default(uuid())
+  cardId    String   @map("card_id")
+  voterHash String   @map("voter_hash") // SHA256(userOid : sessionId)
+  createdAt DateTime @default(now()) @map("created_at") // Audit trail
 
   card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@unique([cardId, voterHash]) // one vote per user per card
   @@index([voterHash])
+  @@index([createdAt]) // For audit queries
   @@map("votes")
 }

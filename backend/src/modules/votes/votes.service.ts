@@ -2,7 +2,6 @@ import { generateOwnerHash } from "../../shared/utils/hash.js";
 import {
   NotFoundError,
   AppError,
-  ConflictError,
 } from "../../shared/errors/app-error.js";
 import { emitVoteUpdated } from "../../socket/emitters/board.emitter.js";
 import * as cardsRepo from "../cards/cards.repository.js";
@@ -21,20 +20,14 @@ export async function castVote(cardId: string, userId: string) {
 
   const voterHash = generateOwnerHash(userId, card.sessionId);
 
-  const existing = await votesRepo.findVote(cardId, voterHash);
-  if (existing) throw new ConflictError("You already voted on this card");
-
-  const totalVotes = await votesRepo.countByVoterInSession(
+  // All validation and vote creation happens atomically in a single transaction
+  // This prevents race conditions where concurrent requests both pass the limit check
+  const { card: updated } = await votesRepo.castVoteAtomic(
+    cardId,
     voterHash,
     card.sessionId,
+    session.maxVotesPerUser,
   );
-  if (totalVotes >= session.maxVotesPerUser) {
-    throw new AppError(
-      `You have used all ${session.maxVotesPerUser} votes in this session`,
-    );
-  }
-
-  const { card: updated } = await votesRepo.addVote(cardId, voterHash);
 
   emitVoteUpdated(card.sessionId, cardId, updated.votesCount);
   return updated;
@@ -56,6 +49,11 @@ export async function removeVote(cardId: string, userId: string) {
   if (!existing) throw new NotFoundError("Vote");
 
   const { card: updated } = await votesRepo.removeVote(cardId, voterHash);
+
+  // Guard against vote count going negative (should not happen, but catch data integrity issues)
+  if (updated.votesCount < 0) {
+    throw new AppError("Vote count integrity error - count went negative");
+  }
 
   emitVoteUpdated(card.sessionId, cardId, updated.votesCount);
   return updated;

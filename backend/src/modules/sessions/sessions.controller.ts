@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { validate } from "../../shared/middleware/validate.js";
+import { asyncHandler } from "../../shared/middleware/async-handler.js";
 import { NotFoundError } from "../../shared/errors/app-error.js";
 import { apiLimiter, createLimiter } from "../../shared/middleware/rate-limit.js";
 import {
@@ -50,11 +51,11 @@ sessionsRouter.get("/:id", async (req, res, next) => {
   }
 });
 
-sessionsRouter.get("/", async (req, res) => {
+sessionsRouter.get("/", asyncHandler(async (req, res) => {
   const channelId = (req.query.channelId as string) || "dev-channel";
   const sessions = await repo.findByChannel(channelId);
-  await res.json(sessions);
-});
+  res.json(sessions);
+}));
 
 sessionsRouter.get("/:id/summary", async (req, res, next) => {
   try {

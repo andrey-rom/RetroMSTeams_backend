@@ -1,21 +1,22 @@
 import { Router } from "express";
+import { asyncHandler } from "../../shared/middleware/async-handler.js";
 import * as repo from "./templates.repository.js";
 
 export const templatesRouter = Router();
 
-templatesRouter.get("/", async (_req, res) => {
+templatesRouter.get("/", asyncHandler(async (_req, res) => {
   const templates = await repo.findAll();
-  await res.json(templates);
-});
+  res.json(templates);
+}));
 
-templatesRouter.get("/:code", async (req, res) => {
+templatesRouter.get("/:code", asyncHandler(async (req, res) => {
   const template = await repo.findByCode(req.params.code.toUpperCase());
 
   if (!template) {
     res.status(404);
-    await res.json({ error: "Template not found" });
+    res.json({ error: "Template not found" });
     return;
   }
 
-  await res.json(template);
-});
+  res.json(template);
+}));
