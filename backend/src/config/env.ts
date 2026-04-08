@@ -1,7 +1,11 @@
-import "dotenv/config";
+// On Azure App Service env vars are injected by the platform; only load .env locally.
+if (!process.env.RUNNING_ON_AZURE) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("dotenv/config");
+}
 
 export const env = {
-  port: +(process.env.PORT || 3000),
+  port: (process.env.PORT || 3000) as string | number,
   nodeEnv: process.env.NODE_ENV || "development",
   isDev: (process.env.NODE_ENV || "development") === "development",
 
@@ -22,13 +26,10 @@ export const env = {
 export function validateEnv(): void {
   const required: Array<[string, string]> = [];
 
+  // Azure AD creds are only needed when real JWT auth is wired up.
+  // For POC the app uses devAuth (x-user-id header), so skip that check.
   if (!env.isDev) {
-    required.push(
-      ["AZURE_TENANT_ID", env.azure.tenantId],
-      ["AZURE_CLIENT_ID", env.azure.clientId],
-      ["AZURE_CLIENT_SECRET", env.azure.clientSecret],
-      ["JWT_SECRET", env.jwt.secret],
-    );
+    required.push(["JWT_SECRET", env.jwt.secret]);
   }
 
   const missing = required

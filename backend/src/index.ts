@@ -20,14 +20,18 @@ server.listen(env.port, async () => {
   logger.info({ url: `http://localhost:${env.port}/api/docs` }, "API docs (Swagger UI)");
   logger.info({ url: `ws://localhost:${env.port}` }, "WebSocket");
 
-  await timerManager.restoreAll(async (sessionId, phase) => {
-    if (phase === "collect") {
-      const graceAt = new Date();
-      await sessionsRepo.setCollectGraceAt(sessionId, graceAt);
-      emitCollectGrace(sessionId, graceAt);
-    } else {
-      await sessionsRepo.setTimerExpiresAt(sessionId, null);
-      emitTimerExpired(sessionId);
-    }
-  });
+  try {
+    await timerManager.restoreAll(async (sessionId, phase) => {
+      if (phase === "collect") {
+        const graceAt = new Date();
+        await sessionsRepo.setCollectGraceAt(sessionId, graceAt);
+        emitCollectGrace(sessionId, graceAt);
+      } else {
+        await sessionsRepo.setTimerExpiresAt(sessionId, null);
+        emitTimerExpired(sessionId);
+      }
+    });
+  } catch (err) {
+    logger.warn({ err }, "Failed to restore timers from DB — DB may not be reachable yet");
+  }
 });
