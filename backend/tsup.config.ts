@@ -1,7 +1,7 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/**/*.ts"],
+  entry: ["src/**/*.ts", "prisma/seed.ts"],
   format: ["cjs"],
   dts: false,
   sourcemap: true,
