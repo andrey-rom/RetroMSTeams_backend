@@ -1,6 +1,12 @@
 import { prisma } from "../../config/db.js";
 import type { SessionPhase, SessionStatus } from "../../generated/prisma/client.js";
 
+const TEMPLATE_INCLUDE = {
+  templateType: {
+    include: { values: { orderBy: { sortOrder: "asc" as const } } },
+  },
+} as const;
+
 interface CreateSessionInput {
   title: string;
   creatorId: string;
@@ -25,22 +31,14 @@ export async function create(data: CreateSessionInput) {
       voteTimerSeconds: data.voteTimerSeconds ?? null,
       currentStatus: "active",
     },
-    include: {
-      templateType: {
-        include: { values: { orderBy: { sortOrder: "asc" } } },
-      },
-    },
+    include: TEMPLATE_INCLUDE,
   });
 }
 
 export async function findById(id: string) {
   return prisma.session.findUnique({
     where: { id },
-    include: {
-      templateType: {
-        include: { values: { orderBy: { sortOrder: "asc" } } },
-      },
-    },
+    include: TEMPLATE_INCLUDE,
   });
 }
 
@@ -52,18 +50,11 @@ export async function findByChannel(channelId: string) {
   });
 }
 
-export async function updatePhase(
-  id: string,
-  phase: SessionPhase,
-) {
+export async function updatePhase(id: string, phase: SessionPhase) {
   return prisma.session.update({
     where: { id },
     data: { currentPhase: phase, timerExpiresAt: null, collectGraceAt: null },
-    include: {
-      templateType: {
-        include: { values: { orderBy: { sortOrder: "asc" } } },
-      },
-    },
+    include: TEMPLATE_INCLUDE,
   });
 }
 
@@ -71,11 +62,7 @@ export async function setTimerExpiresAt(id: string, timerExpiresAt: Date | null)
   return prisma.session.update({
     where: { id },
     data: { timerExpiresAt },
-    include: {
-      templateType: {
-        include: { values: { orderBy: { sortOrder: "asc" } } },
-      },
-    },
+    include: TEMPLATE_INCLUDE,
   });
 }
 
@@ -83,9 +70,15 @@ export async function setCollectGraceAt(id: string, collectGraceAt: Date) {
   return prisma.session.update({
     where: { id },
     data: { collectGraceAt, timerExpiresAt: null },
+    include: TEMPLATE_INCLUDE,
   });
 }
 
+/**
+ * Atomically claim the timer start slot for a session.
+ * Uses updateMany with a sentinel value (epoch) so only one concurrent
+ * caller wins — subsequent calls see timerExpiresAt != null and return false.
+ */
 export async function claimTimerStart(id: string): Promise<boolean> {
   const result = await prisma.session.updateMany({
     where: { id, timerExpiresAt: null, collectGraceAt: null },

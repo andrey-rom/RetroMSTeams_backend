@@ -3,10 +3,7 @@ import { logger } from "../../config/logger.js";
 import { getSessionSummary } from "../sessions/sessions.summary.js";
 import { buildSummaryCard } from "./adaptive-cards/summary.card.js";
 import { prisma } from "../../config/db.js";
-import {
-  NotFoundError,
-  AppError,
-} from "../../shared/errors/app-error.js";
+import { NotFoundError, AppError } from "../../shared/errors/app-error.js";
 
 interface PublishResult {
   sessionId: string;
@@ -19,10 +16,7 @@ export async function publishSummary(
   sessionId: string,
   userId: string,
 ): Promise<PublishResult> {
-  const session = await prisma.session.findUnique({
-    where: { id: sessionId },
-  });
-
+  const session = await prisma.session.findUnique({ where: { id: sessionId } });
   if (!session) throw new NotFoundError("Session");
 
   if (session.creatorId !== userId) {
@@ -38,59 +32,28 @@ export async function publishSummary(
   }
 
   if (session.reportMessageId) {
-    throw new AppError(
-      "Summary has already been published",
-      409,
-      "ALREADY_PUBLISHED",
-    );
+    throw new AppError("Summary has already been published", 409, "ALREADY_PUBLISHED");
   }
 
   const summary = await getSessionSummary(sessionId);
   const adaptiveCard = buildSummaryCard(summary);
 
-  let messageId: string;
+  // MS Graph posting is not yet wired up (requires Azure AD app registration).
+  // In dev mode a synthetic message ID is used so the full publish flow
+  // (phase → summary, publish button, report message) can be tested end-to-end.
+  const messageId = env.isDev
+    ? `dev-msg-${Date.now()}`
+    : `graph-msg-${Date.now()}`;
 
   if (env.isDev) {
-    messageId = `dev-msg-${Date.now()}`;
-    logger.info(
-      { channelId: session.msChannelId, sessionId },
-      "DEV MODE — would publish to channel",
-    );
+    logger.info({ channelId: session.msChannelId, sessionId }, "DEV MODE — skipping MS Graph post");
     logger.debug({ adaptiveCard }, "Adaptive Card preview");
-  } else {
-    // TODO: real MS Graph call
-    // const graphClient = getGraphClient();
-    // const res = await graphClient
-    //   .api(`/teams/${session.msTeamsId}/channels/${session.msChannelId}/messages`)
-    //   .post({
-    //     body: {
-    //       contentType: "html",
-    //       content: `<attachment id="summary"></attachment>`,
-    //     },
-    //     attachments: [
-    //       {
-    //         id: "summary",
-    //         contentType: "application/vnd.microsoft.card.adaptive",
-    //         content: JSON.stringify(adaptiveCard),
-    //       },
-    //     ],
-    //   });
-    // messageId = res.id;
-    messageId = `graph-msg-${Date.now()}`;
   }
 
   await prisma.session.update({
     where: { id: sessionId },
-    data: {
-      reportMessageId: messageId,
-      currentStatus: "completed",
-    },
+    data: { reportMessageId: messageId, currentStatus: "completed" },
   });
 
-  return {
-    sessionId,
-    messageId,
-    published: true,
-    adaptiveCard,
-  };
+  return { sessionId, messageId, published: true, adaptiveCard };
 }

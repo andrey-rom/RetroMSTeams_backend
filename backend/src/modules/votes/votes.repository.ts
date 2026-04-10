@@ -16,7 +16,6 @@ export async function castVoteAtomic(
 ) {
   return prisma.$transaction(
     async (tx) => {
-      // Check if vote already exists
       const existing = await tx.vote.findUnique({
         where: { cardId_voterHash: { cardId, voterHash } },
       });
@@ -24,20 +23,13 @@ export async function castVoteAtomic(
         throw new ConflictError("You already voted on this card");
       }
 
-      // Count total votes for this user in this session
       const totalVotes = await tx.vote.count({
-        where: {
-          voterHash,
-          card: { sessionId },
-        },
+        where: { voterHash, card: { sessionId } },
       });
       if (totalVotes >= maxVotesPerUser) {
-        throw new AppError(
-          `You have used all ${maxVotesPerUser} votes in this session`,
-        );
+        throw new AppError(`You have used all ${maxVotesPerUser} votes in this session`);
       }
 
-      // Create vote and increment card vote count atomically
       const vote = await tx.vote.create({
         data: { cardId, voterHash },
       });
@@ -51,24 +43,9 @@ export async function castVoteAtomic(
     },
     {
       isolationLevel: "Serializable",
-      timeout: 5000, // 5 second timeout to prevent deadlocks
+      timeout: 5000,
     },
   );
-}
-
-export async function addVote(cardId: string, voterHash: string) {
-  return prisma.$transaction(async (tx) => {
-    const vote = await tx.vote.create({
-      data: { cardId, voterHash },
-    });
-
-    const card = await tx.card.update({
-      where: { id: cardId },
-      data: { votesCount: { increment: 1 } },
-    });
-
-    return { vote, card };
-  });
 }
 
 export async function removeVote(cardId: string, voterHash: string) {
@@ -91,10 +68,7 @@ export async function countByVoterInSession(
   sessionId: string,
 ): Promise<number> {
   return prisma.vote.count({
-    where: {
-      voterHash,
-      card: { sessionId },
-    },
+    where: { voterHash, card: { sessionId } },
   });
 }
 
@@ -109,10 +83,7 @@ export async function findVotedCardIds(
   sessionId: string,
 ): Promise<string[]> {
   const votes = await prisma.vote.findMany({
-    where: {
-      voterHash,
-      card: { sessionId },
-    },
+    where: { voterHash, card: { sessionId } },
     select: { cardId: true },
   });
   return votes.map((v) => v.cardId);

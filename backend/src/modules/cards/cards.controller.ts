@@ -8,53 +8,46 @@ import * as cardsService from "./cards.service.js";
 
 export const cardsRouter = Router({ mergeParams: true });
 
-cardsRouter.get("/:sessionId/cards", asyncHandler(async (req, res) => {
-  const cards = await cardsRepo.findBySession(req.params.sessionId);
-  res.json(cards);
-}));
+cardsRouter.get(
+  "/:sessionId/cards",
+  asyncHandler(async (req, res) => {
+    const cards = await cardsRepo.findBySession(req.params.sessionId);
+    res.json(cards);
+  }),
+);
 
 cardsRouter.post(
   "/:sessionId/cards",
   createLimiter,
   validate(createCardSchema),
-  async (req, res, next) => {
-    try {
-      const card = await cardsService.createCard(
-        req.params.sessionId,
-        req.body.columnKey,
-        req.body.content,
-        req.userId,
-      );
-      res.status(201);
-      await res.json(card);
-    } catch (err) {
-      next(err);
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const card = await cardsService.createCard(
+      req.params.sessionId,
+      req.body.columnKey,
+      req.body.content,
+      req.userId,
+    );
+    res.status(201).json(card);
+  }),
 );
 
 cardsRouter.put(
   "/cards/:id",
   validate(updateCardSchema),
-  async (req, res, next) => {
-    try {
-      const card = await cardsService.updateCard(
-        req.params.id,
-        req.body.content,
-        req.userId,
-      );
-      await res.json(card);
-    } catch (err) {
-      next(err);
-    }
-  },
+  asyncHandler(async (req, res) => {
+    const card = await cardsService.updateCard(
+      req.params.id,
+      req.body.content,
+      req.userId,
+    );
+    res.json(card);
+  }),
 );
 
-cardsRouter.delete("/cards/:id", async (req, res, next) => {
-  try {
+cardsRouter.delete(
+  "/cards/:id",
+  asyncHandler(async (req, res) => {
     await cardsService.deleteCard(req.params.id, req.userId);
-    await res.json({ success: true });
-  } catch (err) {
-    next(err);
-  }
-});
+    res.json({ success: true });
+  }),
+);
