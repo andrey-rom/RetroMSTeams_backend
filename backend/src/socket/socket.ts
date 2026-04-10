@@ -3,6 +3,8 @@ import { Server, type Socket } from "socket.io";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import { registerSessionHandlers } from "./handlers/session.handler.js";
+import { emitActiveUsers } from "./emitters/board.emitter.js";
+import * as presence from "./session-presence.js";
 
 let io: Server;
 
@@ -31,7 +33,11 @@ export function initSocketServer(httpServer: HttpServer): Server {
     registerSessionHandlers(socket);
 
     socket.on("disconnect", () => {
-      logger.debug({ socketId: socket.id }, "Socket disconnected");
+      const affected = presence.removeSocketFromAll(socket.id, userId);
+      for (const sessionId of affected) {
+        emitActiveUsers(sessionId, presence.getActiveUserCount(sessionId));
+      }
+      logger.debug({ socketId: socket.id, userId }, "Socket disconnected");
     });
   });
 

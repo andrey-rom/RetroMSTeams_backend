@@ -62,3 +62,7 @@ export function emitCollectGrace(sessionId: string, graceAt?: Date): void {
     collectGraceAt: (graceAt ?? new Date()).toISOString(),
   });
 }
+
+export function emitActiveUsers(sessionId: string, count: number): void {
+  getIO().to(`session:${sessionId}`).emit("users:count", { count });
+}
