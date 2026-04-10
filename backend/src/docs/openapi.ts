@@ -25,7 +25,7 @@ export const openApiDocument = {
         type: "apiKey",
         in: "header",
         name: "x-user-id",
-        description: "Dev-only user identifier (UUID). Replaced by Azure AD SSO in production.",
+        description: "User identifier (UUID) sent in this header.",
       },
     },
     schemas: {

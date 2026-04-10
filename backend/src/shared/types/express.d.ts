@@ -1,6 +1,6 @@
 declare namespace Express {
   interface Request {
-    /** The authenticated user's Azure OID (or dev-generated UUID). */
+    /** User id from the `x-user-id` header (dev-generated UUID). */
     userId: string;
   }
 }
