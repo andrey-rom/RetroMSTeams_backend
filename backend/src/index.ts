@@ -1,0 +1,32 @@
+import http from "http";
+import { env } from "./config/env.js";
+import { logger } from "./config/logger.js";
+import { createApp } from "./app.js";
+import { initSocketServer } from "./socket/socket.js";
+import * as timerManager from "./shared/utils/timer-manager.js";
+import { emitTimerExpired, emitCollectGrace } from "./socket/emitters/board.emitter.js";
+import * as sessionsRepo from "./modules/sessions/sessions.repository.js";
+
+const app = createApp();
+const server = http.createServer(app);
+
+initSocketServer(server);
+
+server.listen(env.port, async () => {
+  logger.info({ port: env.port, env: env.nodeEnv }, "Backend running");
+
+  try {
+    await timerManager.restoreAll(async (sessionId, phase) => {
+      if (phase === "collect") {
+        const graceAt = new Date();
+        await sessionsRepo.setCollectGraceAt(sessionId, graceAt);
+        emitCollectGrace(sessionId, graceAt);
+      } else {
+        await sessionsRepo.setTimerExpiresAt(sessionId, null);
+        emitTimerExpired(sessionId);
+      }
+    });
+  } catch (err) {
+    logger.warn({ err }, "Failed to restore timers from DB — DB may not be reachable yet");
+  }
+});

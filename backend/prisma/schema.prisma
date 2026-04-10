@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum SessionPhase {
+  collect
+  vote
+  summary
+}
+
+enum SessionStatus {
+  draft
+  active
+  completed
+  archived
+}
+
+// ─────────────────────────────────────────────────────────────
+// TEMPLATE TABLES
+// ─────────────────────────────────────────────────────────────
+
+model TemplateType {
+  id          String          @id @default(uuid())
+  code        String          @unique // SSC, MSG, 4L
+  name        String          // "Start / Stop / Continue"
+  description String?         // Optional longer explanation
+
+  values   TemplateValue[]
+  sessions Session[]
+
+  @@map("template_types")
+}
+
+model TemplateValue {
+  id             String @id @default(uuid())
+  templateTypeId String @map("template_type_id")
+  value          String // START, STOP, CONTINUE, MAD, SAD, GLAD, etc.
+  label          String // Human-readable: "Start", "Stop", "Continue"
+  color          String @default("#6264A7") // Column accent colour
+  sortOrder      Int    @default(0) @map("sort_order")
+
+  templateType TemplateType @relation(fields: [templateTypeId], references: [id])
+
+  @@unique([templateTypeId, value])
+  @@index([templateTypeId])
+  @@map("template_values")
+}
+
+// ─────────────────────────────────────────────────────────────
+// SESSION
+// ─────────────────────────────────────────────────────────────
+
+model Session {
+  id              String        @id @default(uuid())
+  title           String        @db.VarChar(200)
+  creatorId       String        @map("creator_id")
+  msTeamsId       String        @map("ms_teams_id")
+  msChannelId     String        @map("ms_channel_id")
+  templateTypeId  String        @map("template_type_id")
+  currentStatus   SessionStatus @default(draft) @map("current_status")
+  currentPhase    SessionPhase  @default(collect) @map("current_phase")
+  maxVotesPerUser Int           @default(5) @map("max_votes_per_user")
+  collectTimerSeconds Int?      @map("collect_timer_seconds")
+  voteTimerSeconds    Int?      @map("vote_timer_seconds")
+  timerExpiresAt      DateTime? @map("timer_expires_at")
+  collectGraceAt      DateTime? @map("collect_grace_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  reportMessageId     String?   @map("report_message_id")
+
+  templateType TemplateType @relation(fields: [templateTypeId], references: [id])
+  cards        Card[]
+
+  @@index([creatorId]) // For querying sessions created by a user
+  @@index([msChannelId])
+  @@index([currentStatus])
+  @@map("sessions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CARD (anonymous)
+// ─────────────────────────────────────────────────────────────
+
+model Card {
+  id         String   @id @default(uuid())
+  sessionId  String   @map("session_id")
+  columnKey  String   @map("column_key") // matches TemplateValue.value
+  content    String   @db.VarChar(500)
+  ownerHash  String   @map("owner_hash") // SHA256(userOid : sessionId)
+  votesCount Int      @default(0) @map("votes_count")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  votes   Vote[]
+
+  @@index([sessionId])
+  @@index([ownerHash])
+  @@map("cards")
+}
+
+// ─────────────────────────────────────────────────────────────
+// VOTE
+// ─────────────────────────────────────────────────────────────
+
+model Vote {
+  id        String   @id @default(uuid())
+  cardId    String   @map("card_id")
+  voterHash String   @map("voter_hash") // SHA256(userOid : sessionId)
+  createdAt DateTime @default(now()) @map("created_at") // Audit trail
+
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([cardId, voterHash]) // one vote per user per card
+  @@index([voterHash])
+  @@index([createdAt]) // For audit queries
+  @@map("votes")
+}
