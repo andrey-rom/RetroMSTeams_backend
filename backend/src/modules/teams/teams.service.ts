@@ -12,6 +12,39 @@ interface PublishResult {
   adaptiveCard: Record<string, unknown>;
 }
 
+async function postToWebhook(
+  webhookUrl: string,
+  adaptiveCard: Record<string, unknown>,
+): Promise<string> {
+  const payload = {
+    type: "message",
+    attachments: [
+      {
+        contentType: "application/vnd.microsoft.card.adaptive",
+        contentUrl: null,
+        content: adaptiveCard,
+      },
+    ],
+  };
+
+  const res = await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new AppError(
+      `Teams webhook rejected the message (HTTP ${res.status}): ${text}`,
+      502,
+      "WEBHOOK_ERROR",
+    );
+  }
+
+  return `webhook-msg-${Date.now()}`;
+}
+
 export async function publishSummary(
   sessionId: string,
   userId: string,
@@ -38,15 +71,15 @@ export async function publishSummary(
   const summary = await getSessionSummary(sessionId);
   const adaptiveCard = buildSummaryCard(summary);
 
-  // MS Graph posting is not yet wired up (requires Azure AD app registration).
-  // In dev mode a synthetic message ID is used so the full publish flow
-  // (phase → summary, publish button, report message) can be tested end-to-end.
-  const messageId = env.isDev
-    ? `dev-msg-${Date.now()}`
-    : `graph-msg-${Date.now()}`;
+  let messageId: string;
 
-  if (env.isDev) {
-    logger.info({ channelId: session.msChannelId, sessionId }, "DEV MODE — skipping MS Graph post");
+  if (env.teamsWebhookUrl) {
+    messageId = await postToWebhook(env.teamsWebhookUrl, adaptiveCard);
+    logger.info({ sessionId, channelId: session.msChannelId }, "Summary published to Teams channel");
+  } else {
+    // No webhook configured — log the card for local dev
+    messageId = `dev-msg-${Date.now()}`;
+    logger.info({ sessionId }, "TEAMS_WEBHOOK_URL not set — skipping Teams post");
     logger.debug({ adaptiveCard }, "Adaptive Card preview");
   }
 

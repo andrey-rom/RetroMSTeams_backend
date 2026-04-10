@@ -10,4 +10,5 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   isDev: (process.env.NODE_ENV || "development") === "development",
   frontendUrl: process.env.FRONTEND_URL || "http://localhost:3978",
+  teamsWebhookUrl: process.env.TEAMS_WEBHOOK_URL || "",
 } as const;
