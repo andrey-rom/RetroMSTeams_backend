@@ -3,7 +3,7 @@ import { env } from "./env.js";
 
 export const logger = pino({
   level: env.isDev ? "debug" : "info",
-  ...(env.isDev && !process.env.RUNNING_ON_AZURE && {
+  ...(env.isDev && !process.env.MANAGED_DEPLOYMENT && {
     transport: {
       target: "pino-pretty",
       options: {

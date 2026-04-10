@@ -1,5 +1,6 @@
-// On Azure App Service env vars are injected by the platform; only load .env locally.
-if (!process.env.RUNNING_ON_AZURE) {
+// On managed deployments (Railway, Azure) env vars are injected by the platform.
+// Only load .env when running locally.
+if (!process.env.MANAGED_DEPLOYMENT) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require("dotenv/config");
 }
@@ -37,8 +38,6 @@ export function validateEnv(): void {
     .map(([name]) => name);
 
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`,
-    );
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
 }
