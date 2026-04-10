@@ -20,14 +20,7 @@ export async function castVote(cardId: string, userId: string) {
 
   const voterHash = generateOwnerHash(userId, card.sessionId);
 
-  // All validation and vote creation happens atomically in a single transaction
-  // This prevents race conditions where concurrent requests both pass the limit check
-  const { card: updated } = await votesRepo.castVoteAtomic(
-    cardId,
-    voterHash,
-    card.sessionId,
-    session.maxVotesPerUser,
-  );
+  const { card: updated } = await votesRepo.castVoteAtomic(cardId, voterHash);
 
   emitVoteUpdated(card.sessionId, cardId, updated.votesCount);
   return updated;

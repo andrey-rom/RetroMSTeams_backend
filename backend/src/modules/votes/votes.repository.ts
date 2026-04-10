@@ -1,18 +1,15 @@
 import { prisma } from "../../config/db.js";
-import { ConflictError, AppError } from "../../shared/errors/app-error.js";
+import { ConflictError } from "../../shared/errors/app-error.js";
 
 /**
- * Atomically cast a vote with validation inside a serializable transaction.
- * Prevents race conditions where concurrent requests both pass the vote limit check.
+ * Atomically cast a vote inside a serializable transaction.
+ * Each user may vote on a card at most once (enforced by unique constraint).
  *
  * @throws ConflictError if user already voted on this card
- * @throws AppError if user has exceeded maxVotesPerUser
  */
 export async function castVoteAtomic(
   cardId: string,
   voterHash: string,
-  sessionId: string,
-  maxVotesPerUser: number,
 ) {
   return prisma.$transaction(
     async (tx) => {
@@ -21,13 +18,6 @@ export async function castVoteAtomic(
       });
       if (existing) {
         throw new ConflictError("You already voted on this card");
-      }
-
-      const totalVotes = await tx.vote.count({
-        where: { voterHash, card: { sessionId } },
-      });
-      if (totalVotes >= maxVotesPerUser) {
-        throw new AppError(`You have used all ${maxVotesPerUser} votes in this session`);
       }
 
       const vote = await tx.vote.create({
