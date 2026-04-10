@@ -1,13 +1,11 @@
 import http from "http";
-import { env, validateEnv } from "./config/env.js";
+import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { createApp } from "./app.js";
 import { initSocketServer } from "./socket/socket.js";
 import * as timerManager from "./shared/utils/timer-manager.js";
 import { emitTimerExpired, emitCollectGrace } from "./socket/emitters/board.emitter.js";
 import * as sessionsRepo from "./modules/sessions/sessions.repository.js";
-
-validateEnv();
 
 const app = createApp();
 const server = http.createServer(app);
