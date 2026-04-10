@@ -1,25 +1,17 @@
+import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../config/db.js";
 import { ConflictError } from "../../shared/errors/app-error.js";
 
 /**
- * Atomically cast a vote inside a serializable transaction.
- * Each user may vote on a card at most once (enforced by unique constraint).
+ * Cast a vote atomically.
+ * The DB unique constraint on (cardId, voterHash) is the source of truth —
+ * no serializable isolation needed since there is no multi-row limit to check.
  *
  * @throws ConflictError if user already voted on this card
  */
-export async function castVoteAtomic(
-  cardId: string,
-  voterHash: string,
-) {
-  return prisma.$transaction(
-    async (tx) => {
-      const existing = await tx.vote.findUnique({
-        where: { cardId_voterHash: { cardId, voterHash } },
-      });
-      if (existing) {
-        throw new ConflictError("You already voted on this card");
-      }
-
+export async function castVoteAtomic(cardId: string, voterHash: string) {
+  try {
+    return await prisma.$transaction(async (tx) => {
       const vote = await tx.vote.create({
         data: { cardId, voterHash },
       });
@@ -30,12 +22,14 @@ export async function castVoteAtomic(
       });
 
       return { vote, card };
-    },
-    {
-      isolationLevel: "Serializable",
-      timeout: 5000,
-    },
-  );
+    });
+  } catch (err) {
+    // P2002 = unique constraint violation — user already voted on this card
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new ConflictError("You already voted on this card");
+    }
+    throw err;
+  }
 }
 
 export async function removeVote(cardId: string, voterHash: string) {
@@ -50,15 +44,6 @@ export async function removeVote(cardId: string, voterHash: string) {
     });
 
     return { card };
-  });
-}
-
-export async function countByVoterInSession(
-  voterHash: string,
-  sessionId: string,
-): Promise<number> {
-  return prisma.vote.count({
-    where: { voterHash, card: { sessionId } },
   });
 }
 
