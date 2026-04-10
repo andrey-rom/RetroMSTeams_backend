@@ -5,10 +5,11 @@ import { voteLimiter } from "../../shared/middleware/rate-limit.js";
 import * as votesRepo from "./votes.repository.js";
 import * as votesService from "./votes.service.js";
 
-export const votesRouter = Router();
+/** Mounted at /sessions — handles /sessions/:sessionId/my-votes */
+export const sessionVotesRouter = Router();
 
-votesRouter.get(
-  "/sessions/:sessionId/my-votes",
+sessionVotesRouter.get(
+  "/:sessionId/my-votes",
   asyncHandler(async (req, res) => {
     const voterHash = generateOwnerHash(req.userId, req.params.sessionId);
     const cardIds = await votesRepo.findVotedCardIds(voterHash, req.params.sessionId);
@@ -16,8 +17,11 @@ votesRouter.get(
   }),
 );
 
-votesRouter.post(
-  "/cards/:cardId/vote",
+/** Mounted at /cards — handles /cards/:cardId/vote */
+export const cardVotesRouter = Router();
+
+cardVotesRouter.post(
+  "/:cardId/vote",
   voteLimiter,
   asyncHandler(async (req, res) => {
     const card = await votesService.castVote(req.params.cardId, req.userId);
@@ -25,8 +29,8 @@ votesRouter.post(
   }),
 );
 
-votesRouter.delete(
-  "/cards/:cardId/vote",
+cardVotesRouter.delete(
+  "/:cardId/vote",
   voteLimiter,
   asyncHandler(async (req, res) => {
     const card = await votesService.removeVote(req.params.cardId, req.userId);
