@@ -9,7 +9,7 @@ export function createApiRouter(): Router {
 
   router.use("/templates", templatesRouter);
   router.use("/sessions", sessionsRouter);
-  router.use("/cards", cardsRouter);
+  router.use("/sessions", cardsRouter);
   router.use("/", votesRouter);
 
   return router;
