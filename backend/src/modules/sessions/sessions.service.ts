@@ -45,16 +45,17 @@ export async function scheduleCollectTimer(
 async function scheduleVoteTimer(
   sessionId: string,
   seconds: number,
-): Promise<void> {
+): Promise<Date> {
   const expiresAt = new Date(Date.now() + seconds * 1000);
 
   await repo.setTimerExpiresAt(sessionId, expiresAt);
-  emitTimerStarted(sessionId, expiresAt);
 
   timerManager.schedule(sessionId, expiresAt, async () => {
     await repo.setTimerExpiresAt(sessionId, null);
     emitTimerExpired(sessionId);
   });
+
+  return expiresAt;
 }
 
 export async function startCollect(
@@ -116,11 +117,15 @@ export async function advancePhase(
     await repo.updateStatus(sessionId, "completed");
   }
 
-  emitPhaseChanged(sessionId, nextPhase);
-
+  let voteTimerExpiresAt: Date | undefined;
   if (nextPhase === "vote" && session.voteTimerSeconds) {
-    await scheduleVoteTimer(sessionId, session.voteTimerSeconds);
+    voteTimerExpiresAt = await scheduleVoteTimer(sessionId, session.voteTimerSeconds);
   }
+
+  // Emit after timer is scheduled so timerExpiresAt is included in the payload.
+  // This prevents a race where the HTTP response (timerExpiresAt: null) would
+  // overwrite the timer value already applied by a separate timer:started event.
+  emitPhaseChanged(sessionId, nextPhase, voteTimerExpiresAt);
 
   return updated;
 }
