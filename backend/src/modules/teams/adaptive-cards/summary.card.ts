@@ -14,6 +14,9 @@ interface SummaryCardInput {
   totals: { cards: number; votes: number; participants: number };
 }
 
+// Top N voted cards per column to surface as action items
+const ACTION_ITEMS_PER_COLUMN = 2;
+
 function buildColumnBlock(col: SummaryCardColumn, first: boolean): unknown[] {
   const header = {
     type: "TextBlock",
@@ -65,7 +68,7 @@ function buildColumnBlock(col: SummaryCardColumn, first: boolean): unknown[] {
               items: [
                 {
                   type: "TextBlock",
-                  text: `👍 ${card.votesCount}`,
+                  text: `▲ ${card.votesCount}`,
                   weight: "Bolder",
                   size: "Small",
                   spacing: "None",
@@ -78,6 +81,90 @@ function buildColumnBlock(col: SummaryCardColumn, first: boolean): unknown[] {
   }));
 
   return [header, ...cardItems];
+}
+
+function buildActionItemsBlock(columns: SummaryCardColumn[]): unknown[] {
+  // Collect top voted cards per column (votes > 0 only)
+  const items: { label: string; content: string; votes: number }[] = [];
+  for (const col of columns) {
+    const top = col.cards
+      .filter((c) => c.votesCount > 0)
+      .slice(0, ACTION_ITEMS_PER_COLUMN);
+    for (const card of top) {
+      items.push({ label: col.label, content: card.content, votes: card.votesCount });
+    }
+  }
+
+  if (items.length === 0) return [];
+
+  const header = {
+    type: "TextBlock",
+    text: "**ACTION ITEMS**",
+    weight: "Bolder",
+    size: "Small",
+    wrap: true,
+    separator: true,
+    spacing: "Large",
+  };
+
+  const rows = items.map((item) => ({
+    type: "ColumnSet",
+    spacing: "Small",
+    columns: [
+      {
+        type: "Column",
+        width: "auto",
+        verticalContentAlignment: "Center",
+        items: [
+          {
+            type: "TextBlock",
+            text: "→",
+            weight: "Bolder",
+            size: "Small",
+            spacing: "None",
+            color: "Accent",
+          },
+        ],
+      },
+      {
+        type: "Column",
+        width: "stretch",
+        verticalContentAlignment: "Center",
+        items: [
+          {
+            type: "TextBlock",
+            text: item.content,
+            wrap: true,
+            size: "Small",
+            spacing: "None",
+          },
+          {
+            type: "TextBlock",
+            text: item.label,
+            isSubtle: true,
+            size: "ExtraSmall",
+            spacing: "None",
+          },
+        ],
+      },
+      {
+        type: "Column",
+        width: "auto",
+        verticalContentAlignment: "Center",
+        items: [
+          {
+            type: "TextBlock",
+            text: `▲ ${item.votes}`,
+            weight: "Bolder",
+            size: "Small",
+            spacing: "None",
+          },
+        ],
+      },
+    ],
+  }));
+
+  return [header, ...rows];
 }
 
 export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown> {
@@ -93,7 +180,7 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
       // Title
       {
         type: "TextBlock",
-        text: `🔁 ${data.title}`,
+        text: data.title,
         weight: "Bolder",
         size: "Large",
         wrap: true,
@@ -117,7 +204,7 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
             type: "Column",
             width: "stretch",
             items: [
-              { type: "TextBlock", text: "📋 Cards", size: "Small", isSubtle: true, spacing: "None" },
+              { type: "TextBlock", text: "Cards", size: "Small", isSubtle: true, spacing: "None" },
               { type: "TextBlock", text: `${data.totals.cards}`, weight: "Bolder", spacing: "None" },
             ],
           },
@@ -125,7 +212,7 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
             type: "Column",
             width: "stretch",
             items: [
-              { type: "TextBlock", text: "👍 Votes", size: "Small", isSubtle: true, spacing: "None" },
+              { type: "TextBlock", text: "Votes", size: "Small", isSubtle: true, spacing: "None" },
               { type: "TextBlock", text: `${data.totals.votes}`, weight: "Bolder", spacing: "None" },
             ],
           },
@@ -133,7 +220,7 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
             type: "Column",
             width: "stretch",
             items: [
-              { type: "TextBlock", text: "👥 People", size: "Small", isSubtle: true, spacing: "None" },
+              { type: "TextBlock", text: "People", size: "Small", isSubtle: true, spacing: "None" },
               { type: "TextBlock", text: `${data.totals.participants}`, weight: "Bolder", spacing: "None" },
             ],
           },
@@ -141,6 +228,8 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
       },
       // Columns
       ...data.columns.flatMap((col, i) => buildColumnBlock(col, i === 0)),
+      // Action items
+      ...buildActionItemsBlock(data.columns),
     ],
   };
 }
