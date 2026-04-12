@@ -16,7 +16,7 @@ export function getIO(): Server {
 export function initSocketServer(httpServer: HttpServer): Server {
   io = new Server(httpServer, {
     cors: {
-      origin: env.isDev ? true : env.frontendUrl,
+      origin: env.isDev ? true : env.allowedOrigins,
       credentials: true,
     },
   });

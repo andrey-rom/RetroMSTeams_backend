@@ -9,6 +9,11 @@ export const env = {
   port: (process.env.PORT || 3000) as string | number,
   nodeEnv: process.env.NODE_ENV || "development",
   isDev: (process.env.NODE_ENV || "development") === "development",
-  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3978",
+  // Comma-separated list of allowed origins, e.g.:
+  // FRONTEND_URL=https://tabc2ac8b.azurewebsites.net,http://localhost:3978
+  allowedOrigins: (process.env.FRONTEND_URL || "http://localhost:3978")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
   teamsWebhookUrl: process.env.TEAMS_WEBHOOK_URL || "",
 } as const;

@@ -37,7 +37,7 @@ export function createApp(): express.Express {
     cors(
       env.isDev
         ? { origin: true, credentials: true }
-        : { origin: env.frontendUrl, credentials: true },
+        : { origin: env.allowedOrigins, credentials: true },
     ),
   );
   app.use(express.json());
