@@ -68,19 +68,39 @@ export async function publishSummary(
     throw new AppError("Summary has already been published", 409, "ALREADY_PUBLISHED");
   }
 
+  // Atomically claim the publish slot — only one concurrent request wins.
+  // Uses a sentinel value so a second request sees reportMessageId != null
+  // and gets rejected before the webhook fires.
+  const claimed = await prisma.session.updateMany({
+    where: { id: sessionId, reportMessageId: null },
+    data: { reportMessageId: "pending" },
+  });
+  if (claimed.count === 0) {
+    throw new AppError("Summary has already been published", 409, "ALREADY_PUBLISHED");
+  }
+
   const summary = await getSessionSummary(sessionId);
   const adaptiveCard = buildSummaryCard(summary);
 
   let messageId: string;
 
-  if (env.teamsWebhookUrl) {
-    messageId = await postToWebhook(env.teamsWebhookUrl, adaptiveCard);
-    logger.info({ sessionId, channelId: session.msChannelId }, "Summary published to Teams channel");
-  } else {
-    // No webhook configured — log the card for local dev
-    messageId = `dev-msg-${Date.now()}`;
-    logger.info({ sessionId }, "TEAMS_WEBHOOK_URL not set — skipping Teams post");
-    logger.debug({ adaptiveCard }, "Adaptive Card preview");
+  try {
+    if (env.teamsWebhookUrl) {
+      messageId = await postToWebhook(env.teamsWebhookUrl, adaptiveCard);
+      logger.info({ sessionId, channelId: session.msChannelId }, "Summary published to Teams channel");
+    } else {
+      // No webhook configured — log the card for local dev
+      messageId = `dev-msg-${Date.now()}`;
+      logger.info({ sessionId }, "TEAMS_WEBHOOK_URL not set — skipping Teams post");
+      logger.debug({ adaptiveCard }, "Adaptive Card preview");
+    }
+  } catch (err) {
+    // Release the sentinel so the moderator can retry
+    await prisma.session.update({
+      where: { id: sessionId },
+      data: { reportMessageId: null },
+    });
+    throw err;
   }
 
   await prisma.session.update({

@@ -14,65 +14,53 @@ interface SummaryCardInput {
   totals: { cards: number; votes: number; participants: number };
 }
 
-// Maps hex color to the closest Adaptive Card named color.
-// AC only supports a fixed palette — we pick by hue.
-function hexToAcColor(hex: string): string {
-  const map: Array<[string, string]> = [
-    ["#6BB700", "Good"],    // green  → Good
-    ["#E74856", "Attention"], // red  → Attention
-    ["#0078D4", "Accent"],   // blue  → Accent
-    ["#8764B8", "Dark"],     // purple → Dark
-    ["#6264A7", "Accent"],   // teams purple → Accent
-  ];
-  const normalised = hex.toUpperCase();
-  for (const [src, acColor] of map) {
-    if (normalised === src.toUpperCase()) return acColor;
-  }
-  return "Default";
+// Action items selection:
+//   Phase 1 — up to PER_COLUMN_CAP from each column (fairness across columns)
+//   Phase 2 — fill remaining slots with overflow cards from any column
+// This means a single dominant column gets all its cards up to GLOBAL_MAX,
+// while balanced retros naturally get at most PER_COLUMN_CAP per column.
+const ACTION_ITEMS_GLOBAL_MAX = 8;
+const ACTION_ITEMS_PER_COLUMN_CAP = 3;
+
+interface ActionItem {
+  label: string;
+  content: string;
+  votes: number;
 }
 
-function buildColumnBlock(col: SummaryCardColumn): unknown[] {
-  const acColor = hexToAcColor(col.color);
+function selectActionItems(columns: SummaryCardColumn[]): ActionItem[] {
+  const phase1: ActionItem[] = [];
+  const overflow: ActionItem[] = [];
 
+  for (const col of columns) {
+    const voted = col.cards.filter((c) => c.votesCount > 0);
+    voted.slice(0, ACTION_ITEMS_PER_COLUMN_CAP).forEach((c) =>
+      phase1.push({ label: col.label, content: c.content, votes: c.votesCount }),
+    );
+    voted.slice(ACTION_ITEMS_PER_COLUMN_CAP).forEach((c) =>
+      overflow.push({ label: col.label, content: c.content, votes: c.votesCount }),
+    );
+  }
+
+  phase1.sort((a, b) => b.votes - a.votes);
+  overflow.sort((a, b) => b.votes - a.votes);
+
+  const result = phase1.slice(0, ACTION_ITEMS_GLOBAL_MAX);
+  if (result.length < ACTION_ITEMS_GLOBAL_MAX) {
+    result.push(...overflow.slice(0, ACTION_ITEMS_GLOBAL_MAX - result.length));
+  }
+  return result;
+}
+
+function buildColumnBlock(col: SummaryCardColumn, first: boolean): unknown[] {
   const header = {
-    type: "Container",
-    style: "emphasis",
-    bleed: true,
-    spacing: "Medium",
-    items: [
-      {
-        type: "ColumnSet",
-        columns: [
-          {
-            type: "Column",
-            width: "stretch",
-            items: [
-              {
-                type: "TextBlock",
-                text: col.label.toUpperCase(),
-                weight: "Bolder",
-                size: "Small",
-                color: acColor,
-                spacing: "None",
-              },
-            ],
-          },
-          {
-            type: "Column",
-            width: "auto",
-            items: [
-              {
-                type: "TextBlock",
-                text: `${col.totalCards} card${col.totalCards !== 1 ? "s" : ""}  ·  ${col.totalVotes} vote${col.totalVotes !== 1 ? "s" : ""}`,
-                size: "Small",
-                isSubtle: true,
-                spacing: "None",
-              },
-            ],
-          },
-        ],
-      },
-    ],
+    type: "TextBlock",
+    text: `**${col.label.toUpperCase()}**  —  ${col.totalCards} card${col.totalCards !== 1 ? "s" : ""},  ${col.totalVotes} vote${col.totalVotes !== 1 ? "s" : ""}`,
+    weight: "Bolder",
+    size: "Small",
+    wrap: true,
+    separator: !first,
+    spacing: first ? "Medium" : "Large",
   };
 
   if (col.cards.length === 0) {
@@ -84,7 +72,6 @@ function buildColumnBlock(col: SummaryCardColumn): unknown[] {
         isSubtle: true,
         size: "Small",
         spacing: "Small",
-        italic: true,
       },
     ];
   }
@@ -116,10 +103,9 @@ function buildColumnBlock(col: SummaryCardColumn): unknown[] {
               items: [
                 {
                   type: "TextBlock",
-                  text: `👍 ${card.votesCount}`,
+                  text: `▲ ${card.votesCount}`,
                   weight: "Bolder",
                   size: "Small",
-                  color: acColor,
                   spacing: "None",
                 },
               ],
@@ -132,6 +118,81 @@ function buildColumnBlock(col: SummaryCardColumn): unknown[] {
   return [header, ...cardItems];
 }
 
+function buildActionItemsBlock(columns: SummaryCardColumn[]): unknown[] {
+  const items = selectActionItems(columns);
+
+  if (items.length === 0) return [];
+
+  const header = {
+    type: "TextBlock",
+    text: "**ACTION ITEMS**",
+    weight: "Bolder",
+    size: "Small",
+    wrap: true,
+    separator: true,
+    spacing: "Large",
+  };
+
+  const rows = items.map((item) => ({
+    type: "ColumnSet",
+    spacing: "Small",
+    columns: [
+      {
+        type: "Column",
+        width: "auto",
+        verticalContentAlignment: "Center",
+        items: [
+          {
+            type: "TextBlock",
+            text: "→",
+            weight: "Bolder",
+            size: "Small",
+            spacing: "None",
+            color: "Accent",
+          },
+        ],
+      },
+      {
+        type: "Column",
+        width: "stretch",
+        verticalContentAlignment: "Center",
+        items: [
+          {
+            type: "TextBlock",
+            text: item.content,
+            wrap: true,
+            size: "Small",
+            spacing: "None",
+          },
+          {
+            type: "TextBlock",
+            text: item.label,
+            isSubtle: true,
+            size: "ExtraSmall",
+            spacing: "None",
+          },
+        ],
+      },
+      {
+        type: "Column",
+        width: "auto",
+        verticalContentAlignment: "Center",
+        items: [
+          {
+            type: "TextBlock",
+            text: `▲ ${item.votes}`,
+            weight: "Bolder",
+            size: "Small",
+            spacing: "None",
+          },
+        ],
+      },
+    ],
+  }));
+
+  return [header, ...rows];
+}
+
 export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown> {
   const date = new Date(data.createdAt).toLocaleDateString("en-GB", {
     day: "numeric", month: "short", year: "numeric",
@@ -140,71 +201,61 @@ export function buildSummaryCard(data: SummaryCardInput): Record<string, unknown
   return {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    version: "1.5",
+    version: "1.4",
     body: [
-      // ── Header ──────────────────────────────────────────────
+      // Title
       {
-        type: "Container",
-        style: "accent",
-        bleed: true,
-        items: [
-          {
-            type: "TextBlock",
-            text: `🔁 ${data.title}`,
-            weight: "Bolder",
-            size: "Large",
-            color: "Light",
-            wrap: true,
-            spacing: "None",
-          },
-          {
-            type: "TextBlock",
-            text: `${data.templateName}  ·  ${date}`,
-            size: "Small",
-            color: "Light",
-            isSubtle: true,
-            spacing: "Small",
-          },
-        ],
+        type: "TextBlock",
+        text: data.title,
+        weight: "Bolder",
+        size: "Large",
+        wrap: true,
+        spacing: "None",
       },
-
-      // ── Stats row ────────────────────────────────────────────
+      // Subtitle
+      {
+        type: "TextBlock",
+        text: `${data.templateName}  ·  ${date}`,
+        size: "Small",
+        isSubtle: true,
+        spacing: "Small",
+      },
+      // Stats row
       {
         type: "ColumnSet",
         spacing: "Medium",
+        separator: true,
         columns: [
           {
             type: "Column",
             width: "stretch",
             items: [
-              { type: "TextBlock", text: "📋 Cards", size: "Small", isSubtle: true, spacing: "None" },
-              { type: "TextBlock", text: `${data.totals.cards}`, weight: "Bolder", size: "Medium", spacing: "None" },
+              { type: "TextBlock", text: "Cards", size: "Small", isSubtle: true, spacing: "None" },
+              { type: "TextBlock", text: `${data.totals.cards}`, weight: "Bolder", spacing: "None" },
             ],
           },
           {
             type: "Column",
             width: "stretch",
             items: [
-              { type: "TextBlock", text: "👍 Votes", size: "Small", isSubtle: true, spacing: "None" },
-              { type: "TextBlock", text: `${data.totals.votes}`, weight: "Bolder", size: "Medium", spacing: "None" },
+              { type: "TextBlock", text: "Votes", size: "Small", isSubtle: true, spacing: "None" },
+              { type: "TextBlock", text: `${data.totals.votes}`, weight: "Bolder", spacing: "None" },
             ],
           },
           {
             type: "Column",
             width: "stretch",
             items: [
-              { type: "TextBlock", text: "👥 People", size: "Small", isSubtle: true, spacing: "None" },
-              { type: "TextBlock", text: `${data.totals.participants}`, weight: "Bolder", size: "Medium", spacing: "None" },
+              { type: "TextBlock", text: "People", size: "Small", isSubtle: true, spacing: "None" },
+              { type: "TextBlock", text: `${data.totals.participants}`, weight: "Bolder", spacing: "None" },
             ],
           },
         ],
       },
-
-      // ── Divider ──────────────────────────────────────────────
-      { type: "Separator", spacing: "Medium" },
-
-      // ── Columns ──────────────────────────────────────────────
-      ...data.columns.flatMap(buildColumnBlock),
+      // Columns
+      ...data.columns.flatMap((col, i) => buildColumnBlock(col, i === 0)),
+      // Action items
+      ...buildActionItemsBlock(data.columns),
     ],
   };
 }
